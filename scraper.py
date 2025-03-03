@@ -1,17 +1,22 @@
-#driver.get("https://www.capitoltrades.com/politicians/P000197")
 import requests
 import re
 from bs4 import BeautifulSoup
 from datetime import datetime
 
 # URL of the website containing the table
-url = "https://www.capitoltrades.com/trades?politician=P000197&pageSize=96"
-#url = "https://www.capitoltrades.com/trades?politician=P000608&pageSize=96"
+
+politicanList = {"Michael McCaul": "M001157", "Ro Khanna": "K000389", "Darrell Issa": "I000056", "Josh Gottheimer": "G000583"}
+
+def genUrl(politicanName):
+    return f"https://www.capitoltrades.com/trades?politician={politicanList[politicanName]}&pageSize=96"
+
 
 # Fetch the HTML content
-response = requests.get(url)
+response = requests.get(genUrl("Michael McCaul"))
 
 tradesData = list()
+
+returnValue = {"Politician": None, "Party": None, "TradesData": list()}
 
 # Check if the request was successful
 if response.status_code == 200:
@@ -41,17 +46,34 @@ if response.status_code == 200:
             pattern = r"[A-Z]*:US"
             ticker = re.search(pattern, row_data[1])
 
-            date_str = row_data[2]
+            date_str = row_data[3]
             date_str = date_str.replace("Sept", "Sep")
             date_obj = datetime.strptime(date_str, "%d %b%Y")
             formatted_date = date_obj.strftime("%B %d, %Y")
 
+            partyPattern = r"(Democrat|Republican)"
+            searchPattern = re.search(partyPattern, row_data[0])
+            
+            #print(row_data[0][0:searchPattern.start() - 1])
+            #print(row_data[0][searchPattern.start():searchPattern.end()])
+
+            if(returnValue["Politician"] == None):
+                returnValue["Politician"] = row_data[0][0:searchPattern.start() - 1]
+            
+            if(returnValue["Party"] == None):
+                returnValue["Party"] = row_data[0][searchPattern.start():searchPattern.end()]
+
+            #row_data[0][0:12], row_data[0][12:20],
+
             try:
-                modifiedData = [row_data[0][0:12], row_data[0][12:20], ticker.group(), formatted_date, row_data[4][4:] + " " + row_data[4][:4], row_data[6], row_data[7]]
-                print(modifiedData)  # Print the row data as a list
+                modifiedData = [ticker.group(), formatted_date, row_data[4][4:] + " " + row_data[4][:4], row_data[6], row_data[7]]
+                #print(modifiedData)  # Print the row data as a list
+                returnValue["TradesData"].append(modifiedData)
             except:
                 continue
     else:
         print("No <tbody> found.")
 else:
     print(f"Failed to retrieve the page. Status code: {response.status_code}")
+
+print(returnValue)
