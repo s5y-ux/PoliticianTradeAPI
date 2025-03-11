@@ -59,7 +59,7 @@ def get_trade_data(politician_name):
                 party_match = re.search(r"(Democrat|Republican)", row_data[0])
                 
                 if return_value["Politician"] is None:
-                    return_value["Politician"] = row_data[0][:party_match.start() - 1]
+                    return_value["Politician"] = row_data[0][:party_match.start()]
                 
                 if return_value["Party"] is None:
                     return_value["Party"] = party_match.group()
