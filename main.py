@@ -181,6 +181,102 @@ def get_latest_trades():
     data = get_latest_trade_data()
     return jsonify(data)
 
+@app.route("/get_profile", methods=["GET"])
+def get_profile():
+    politician_name = request.args.get("name")
+    if not politician_name:
+        return jsonify({"error": "Please provide a politician's name"}), 400
+    
+    politician_list = get_politician_ids()
+    
+    if politician_name not in politician_list:
+        return jsonify({"error": "Politician not found"}), 404
+
+    # Get the politician's CapitolTrades profile URL
+    politician_id = politician_list[politician_name]
+    profile_url = f"https://www.capitoltrades.com/politicians/{politician_id}"
+
+    # Send a request to the politician's profile page
+    response = requests.get(profile_url)
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # Extract the required data from the profile page
+    profile_data = {}
+
+    # Number of Trades
+    trades = soup.find("span", text="Trades")
+    if trades:
+        profile_data["Trades"] = trades.find_previous("span").text.strip()
+
+    # Number of Issuers
+    issuers = soup.find("span", text="Issuers")
+    if issuers:
+        profile_data["Issuers"] = issuers.find_previous("span").text.strip()
+
+    # Volume
+    volume = soup.find("span", text="Volume")
+    if volume:
+        profile_data["Volume"] = volume.find_previous("span").text.strip()
+
+    # Last Traded Date
+    last_traded = soup.find("span", text="Last Traded")
+    if last_traded:
+        profile_data["Last Traded"] = last_traded.find_previous("span").text.strip()
+
+    # District
+    district = soup.find("span", text="District")
+    if district:
+        profile_data["District"] = district.find_previous("span").text.strip()
+
+    # Years Active (Fixing the en-dash to a regular dash)
+    years_active = soup.find("span", text="Years Active")
+    if years_active:
+        years_active_text = years_active.find_previous("span").text.strip()
+        profile_data["Years Active"] = years_active_text.replace("\u2013", "-")
+
+    # Date of Birth
+    date_of_birth = soup.find("span", text="Date of Birth")
+    if date_of_birth:
+        profile_data["Date of Birth"] = date_of_birth.find_previous("span").text.strip()
+
+    # Age
+    age = soup.find("span", text="Age")
+    if age:
+        profile_data["Age"] = age.find_previous("span").text.strip()
+
+    # Extract data for Most Traded Issuers
+    most_traded_issuers = {}
+    issuers_section = soup.find("h2", string="Most Traded Issuers")
+    if issuers_section:
+        legend_items = issuers_section.find_next("ul", class_="chart-legend").find_all("li")
+        for item in legend_items:
+            label = item.find("span", class_="label").text.strip()
+            value = item.find("span", class_="value").text.strip()
+            most_traded_issuers[label] = value
+    profile_data["Most Traded Issuers"] = most_traded_issuers
+
+    # Extract data for Most Traded Sectors
+    most_traded_sectors = {}
+    sectors_section = soup.find("h2", string="Most Traded Sectors")
+    if sectors_section:
+        legend_items = sectors_section.find_next("ul", class_="chart-legend").find_all("li")
+        for item in legend_items:
+            label = item.find("span", class_="label").text.strip()
+            value = item.find("span", class_="value").text.strip()
+            most_traded_sectors[label] = value
+    profile_data["Most Traded Sectors"] = most_traded_sectors
+
+    # Call get_trade_data to include trade data
+    trade_data = get_trade_data(politician_name)
+    
+    # Combine profile data and trade data
+    profile_data["Trade Data"] = trade_data["TradesData"]
+
+    return jsonify(profile_data)
+
+
+
+
 
 if __name__ == "__main__":
     app.run(debug=True)
